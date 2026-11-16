@@ -51,46 +51,21 @@ public partial class MainWindow : Window
     public void OpenSettings() => _viewModel.IsSettingsOpen = true;
 
     /// <summary>
-    /// Center on the monitor the window is on. WPF's Left/Top and
-    /// SystemParameters.WorkArea mix virtual-screen and DPI spaces on scaled
-    /// multi-monitor setups, so the final placement is done with SetWindowPos in
-    /// physical pixels taken straight from GetMonitorInfo.
+    /// Center on the primary monitor and keep the window inside its work area.
+    /// Deliberately done in WPF units (Left/Top/Height) and never with
+    /// SetWindowPos: mixing physical pixels and DIPs is what made the window come
+    /// out 420x660 physical on a 175% display, squashing the card layout.
     /// </summary>
     private void PlaceWindow()
     {
-        IntPtr handle = new WindowInteropHelper(this).Handle;
-        // Always centre on the primary monitor: the window may be created on a
-        // secondary screen (mixed DPI), and a tray app belongs where the taskbar is.
-        IntPtr monitor = MonitorFromPoint(new Point32 { X = 0, Y = 0 }, MonitorDefaultToPrimary);
-        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
-        if (!GetMonitorInfo(monitor, ref info)) return;
+        System.Windows.Rect work = SystemParameters.WorkArea;
 
-        uint dpi = 96;
-        if (GetDpiForMonitor(monitor, 0, out uint dpiX, out _) != 0 || dpiX == 0)
-            dpi = GetDpiForWindow(handle);
-        double scale = dpi > 0 ? dpi / 96.0 : 1.0;
-
-        int workWidth = info.Work.Right - info.Work.Left;
-        int workHeight = info.Work.Bottom - info.Work.Top;
-
-        MaxHeight = Math.Max(380, workHeight / scale - 32);
+        MaxHeight = Math.Max(380, work.Height - 32);
         if (Height > MaxHeight) Height = MaxHeight;
 
-        int pixelWidth = (int)Math.Round(Width * scale);
-        int pixelHeight = (int)Math.Round(Height * scale);
-        int x = info.Work.Left + (workWidth - pixelWidth) / 2;
-        int y = info.Work.Top + (workHeight - pixelHeight) / 2;
-
-        SetWindowPos(handle, IntPtr.Zero, x, y, pixelWidth, pixelHeight,
-            SwpNoZOrder | SwpNoActivate);
+        Left = work.Left + (work.Width - Width) / 2;
+        Top = work.Top + (work.Height - Height) / 2;
     }
-
-    private const uint SwpNoZOrder = 0x0004;
-    private const uint SwpNoActivate = 0x0010;
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.U1)]
-    private static extern bool SetWindowPos(IntPtr handle, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
     private const uint MonitorDefaultToPrimary = 1;
 
     [DllImport("shcore.dll")]
@@ -178,6 +153,35 @@ public partial class MainWindow : Window
         if (e.Key != Key.Escape) return;
         if (_viewModel.IsSettingsOpen) _viewModel.IsSettingsOpen = false;
         else if (_viewModel.IsOtherOpen) _viewModel.IsOtherOpen = false;
+    }
+
+    private bool _resizing;
+    private Point _resizeStart;
+    private System.Windows.Size _resizeStartSize;
+
+    private void ResizeGrip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not UIElement grip) return;
+        _resizing = true;
+        _resizeStart = e.GetPosition(this);
+        _resizeStartSize = new System.Windows.Size(ActualWidth, ActualHeight);
+        grip.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void ResizeGrip_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_resizing) return;
+        Point current = e.GetPosition(this);
+        Width = Math.Max(MinWidth, _resizeStartSize.Width + (current.X - _resizeStart.X));
+        Height = Math.Max(MinHeight, _resizeStartSize.Height + (current.Y - _resizeStart.Y));
+    }
+
+    private void ResizeGrip_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_resizing) return;
+        _resizing = false;
+        (sender as UIElement)?.ReleaseMouseCapture();
     }
 
     protected override void OnClosing(CancelEventArgs e)

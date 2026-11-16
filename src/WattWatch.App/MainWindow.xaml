@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="WattWatch" Width="420" Height="660"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ResizeMode="NoResize" WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize" WindowStartupLocation="CenterScreen" MinWidth="360" MinHeight="420"
         FontFamily="Microsoft YaHei UI" UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         KeyDown="Window_KeyDown">
@@ -128,7 +128,15 @@
             </Grid>
 
             <!-- settings overlay -->
-            <Border Grid.Row="0" Grid.RowSpan="3" Background="{StaticResource BgBrush}" CornerRadius="16"
+                        <Border Grid.Row="0" Grid.RowSpan="3" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,2,2" Background="Transparent" Cursor="SizeNWSE"
+                    MouseLeftButtonDown="ResizeGrip_MouseLeftButtonDown"
+                    MouseMove="ResizeGrip_MouseMove"
+                    MouseLeftButtonUp="ResizeGrip_MouseLeftButtonUp">
+                <Path Data="M7,15 L15,7 M12,15 L15,12" Stroke="#4B566B" StrokeThickness="1.6"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            </Border>
+<Border Grid.Row="0" Grid.RowSpan="3" Background="{StaticResource BgBrush}" CornerRadius="16"
                     Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}">
                 <Grid Margin="20,16,20,16">
                     <Grid.RowDefinitions>
