@@ -13,6 +13,7 @@ Windows 托盘小工具：把 2.4G 接收器和蓝牙外设的电量集中显示
 | 雷蛇 毒蝰 Viper V3 Pro | `1532:00C1`，90 字节 feature report（class 0x07 / 0x80） | 本机验证：17% 与 Synapse 一致 |
 | VGN V98 Pro | `320F:5088`，0xFF1C 通道，report id 0x04 的 `0x1A` 查询 | 本机验证：77% |
 | 漫步者 W830NB | 经典蓝牙 HFP 网关节点的 `DEVPKEY_Device_BatteryLevel` | 本机验证：20% |
+| 华为 FreeBuds Studio | 同为经典蓝牙 HFP 节点属性 | 待连接验证（系统没缓存电量时会出现在「其他设备」） |
 | 飞智 八爪鱼 5 | `37D7:2501`，`5A A5 01` GET_INFO | 本机验证：100% |
 | 索尼 DualSense / Edge | `054C:0CE6` / `0DF2`，读 feature 0x09 后解析 0x31 状态报文 | 本机验证：55% |
 | 其它蓝牙设备 | Windows 已缓存的电量属性（含 BLE，如 Xbox 手柄） | 自动识别 |

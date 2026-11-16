@@ -14,7 +14,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Platforms>x64</Platforms>
     <StartupObject>WattWatch.App.Program</StartupObject>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Company>WattWatch</Company>
     <Product>WattWatch</Product>
     <AssemblyTitle>WattWatch 无线设备电量监控</AssemblyTitle>

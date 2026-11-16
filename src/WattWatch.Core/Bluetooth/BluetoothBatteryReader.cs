@@ -9,10 +9,11 @@ namespace WattWatch.Core.Bluetooth;
 public sealed record BluetoothBatteryDevice(
     string Mac,
     string Name,
-    int Percent,
+    int? Percent,
     DeviceKind Kind,
     string Transport,
-    string Evidence);
+    string Evidence,
+    bool IsAudio);
 
 /// <summary>
 /// Reads battery levels that the Windows Bluetooth stack already publishes as a
@@ -125,7 +126,6 @@ public static class BluetoothBatteryReader
         foreach (IGrouping<string, Node> group in nodes.GroupBy(n => n.Mac, StringComparer.OrdinalIgnoreCase))
         {
             List<Node> withBattery = group.Where(n => n.Battery is > 0 and <= 100).ToList();
-            if (withBattery.Count == 0) continue;
 
             // Prefer the parent device node's name ("EDIFIER W830NB") over a
             // service child ("EDIFIER W830NB Hands-Free AG").
@@ -142,16 +142,23 @@ public static class BluetoothBatteryReader
                     .FirstOrDefault()
                 ?? "蓝牙设备";
 
-            Node carrier = withBattery.OrderByDescending(n => n.Battery).First();
-            DeviceKind kind = ResolveKind(name, group.Where(n => n.Service != null).Select(n => n.Service!));
+            Node? carrier = withBattery.OrderByDescending(n => n.Battery).FirstOrDefault()
+                            ?? group.FirstOrDefault(n => n.Service == null)
+                            ?? group.First();
+            var services = group.Where(n => n.Service != null).Select(n => n.Service!).ToList();
+            DeviceKind kind = ResolveKind(name, services);
+            bool isAudio = services.Any(s => s is "0000111e" or "0000110b" or "00001112");
 
             result.Add(new BluetoothBatteryDevice(
                 group.Key,
                 name,
-                carrier.Battery!.Value,
+                carrier.Battery,
                 kind,
                 carrier.Transport,
-                $"DEVPKEY_Device_BatteryLevel={carrier.Battery} node={carrier.Transport}/{carrier.Service ?? "-"}"));
+                carrier.Battery == null
+                    ? $"no battery property on {carrier.Transport} nodes"
+                    : $"DEVPKEY_Device_BatteryLevel={carrier.Battery} node={carrier.Transport}/{carrier.Service ?? "-"}",
+                isAudio));
         }
 
         result = result.Select(d => d with { Name = ShortenName(d.Name) }).ToList();
@@ -179,6 +186,8 @@ public static class BluetoothBatteryReader
     {
         "Xbox Wireless Controller" => "Xbox 手柄",
         "DualSense Wireless Controller" => "DualSense 手柄",
+        "HUAWEI FreeBuds Studio" => "华为 FreeBuds Studio",
+        "FreeBuds Studio" => "华为 FreeBuds Studio",
         _ => name,
     };
 

@@ -173,10 +173,25 @@ public sealed class BatteryMonitor : IDisposable
             claimed.Add(info.VidPid);
         }
 
+        var bluetoothOthers = new List<OtherDevice>();
         foreach (BluetoothBatteryDevice device in BluetoothBatteryReader.Scan())
-            sources.Add(new BluetoothBatterySource(device));
+        {
+            if (device.Percent is not null)
+            {
+                sources.Add(new BluetoothBatterySource(device));
+                continue;
+            }
 
-        OtherDevices = CollectOthers(interfaces, claimed);
+            // Audio gear that is connected but has no cached level: list it so the
+            // user can tell "not seen" from "seen, but Windows has no level".
+            if (device.IsAudio)
+                bluetoothOthers.Add(new OtherDevice(device.Name, device.Mac, device.Transport, "系统没有缓存电量"));
+        }
+
+        OtherDevices = CollectOthers(interfaces, claimed)
+            .Concat(bluetoothOthers)
+            .OrderBy(o => o.Name, StringComparer.CurrentCulture)
+            .ToList();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         bool changed = false;

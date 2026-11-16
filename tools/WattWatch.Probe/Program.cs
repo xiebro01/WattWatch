@@ -44,7 +44,7 @@ internal static class Program
         }
 
         foreach (BluetoothBatteryDevice device in BluetoothBatteryReader.Scan())
-            yield return new BluetoothBatterySource(device);
+            if (device.Percent is not null) yield return new BluetoothBatterySource(device);
     }
 
     private static int ListDevices()
@@ -61,7 +61,7 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("=== Bluetooth battery nodes ===");
         foreach (BluetoothBatteryDevice device in BluetoothBatteryReader.Scan())
-            Console.WriteLine($"{device.Mac}  {device.Percent,3}%  {device.Kind,-8} {device.Transport}  \"{device.Name}\"  ({device.Evidence})");
+            Console.WriteLine($"{device.Mac}  {(device.Percent?.ToString() ?? "--"),3}%  {device.Kind,-8} {device.Transport}  \"{device.Name}\"  ({device.Evidence})");
 
         return 0;
     }

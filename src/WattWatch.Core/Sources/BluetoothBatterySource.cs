@@ -38,8 +38,8 @@ public sealed class BluetoothBatterySource : IBatterySource
         BluetoothBatteryDevice? current = BluetoothBatteryReader.Scan()
             .FirstOrDefault(d => string.Equals(d.Mac, Mac, StringComparison.OrdinalIgnoreCase));
 
-        return current == null
-            ? null
-            : new ProtocolResult(current.Percent, ChargingState.Unknown, current.Evidence);
+        return current?.Percent is int percent
+            ? new ProtocolResult(percent, ChargingState.Unknown, current.Evidence)
+            : null;
     }
 }
