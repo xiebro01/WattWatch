@@ -14,6 +14,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private string _statusLine = "正在扫描设备…";
     private bool _isSettingsOpen;
     private bool _isEmpty = true;
+    private bool _isOtherOpen;
 
     public MainViewModel(BatteryMonitor monitor)
     {
@@ -23,6 +24,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshCommand = new RelayCommand(() => _monitor.RefreshNow());
         ToggleSettingsCommand = new RelayCommand(() => IsSettingsOpen = !IsSettingsOpen);
         OpenDataFolderCommand = new RelayCommand(OpenDataFolder);
+        ToggleOtherCommand = new RelayCommand(() => IsOtherOpen = !IsOtherOpen);
         RefreshDeviceCommand = new RelayCommand(p =>
         {
             if (p is DeviceViewModel vm) _monitor.RefreshDevice(vm.Key);
@@ -36,9 +38,28 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public ObservableCollection<DeviceViewModel> Devices { get; } = new();
 
+    public ObservableCollection<OtherDevice> OtherDevices { get; } = new();
+
+    public bool HasOther => OtherDevices.Count > 0;
+
+    public string OtherHeader => $"其他设备（{OtherDevices.Count}）";
+
+    public bool IsOtherOpen
+    {
+        get => _isOtherOpen;
+        set
+        {
+            if (_isOtherOpen == value) return;
+            _isOtherOpen = value;
+            OnPropertyChanged(nameof(IsOtherOpen));
+        }
+    }
+
     public ICommand RefreshCommand { get; }
 
     public ICommand ToggleSettingsCommand { get; }
+
+    public ICommand ToggleOtherCommand { get; }
 
     public ICommand OpenDataFolderCommand { get; }
 
@@ -139,6 +160,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Devices.Add(CreateViewModel(device));
         }
 
+        OtherDevices.Clear();
+        foreach (OtherDevice other in _monitor.OtherDevices) OtherDevices.Add(other);
+        OnPropertyChanged(nameof(HasOther));
+        OnPropertyChanged(nameof(OtherHeader));
+
         IsEmpty = Devices.Count == 0;
         StatusLine = Devices.Count == 0
             ? "未发现设备"
@@ -165,6 +191,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public void Refresh()
     {
+        OtherDevices.Clear();
+        foreach (OtherDevice other in _monitor.OtherDevices) OtherDevices.Add(other);
+        OnPropertyChanged(nameof(HasOther));
+        OnPropertyChanged(nameof(OtherHeader));
+
         Devices.Clear();
         foreach (BatteryDevice device in _monitor.Devices) Devices.Add(CreateViewModel(device));
         OnPropertyChanged(nameof(FooterHint));

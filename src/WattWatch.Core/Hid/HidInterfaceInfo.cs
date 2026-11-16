@@ -20,6 +20,12 @@ public sealed record HidInterfaceInfo(
 {
     public string VidPid => $"{VendorId:X4}:{ProductId:X4}";
 
+    /// <summary>Bluetooth HID paths look like <c>hid#{service-guid}_vid&amp;...</c>,
+    /// USB ones like <c>hid#vid_...</c>.</summary>
+    public bool IsBluetooth => DevicePath.Contains("hid#{", StringComparison.OrdinalIgnoreCase);
+
+    public string TransportLabel => IsBluetooth ? "蓝牙" : "2.4G";
+
     /// <summary>Stable-ish identity for history: the physical model, not the port.</summary>
     public string StableKey =>
         $"{VendorId:X4}:{ProductId:X4}:{(string.IsNullOrWhiteSpace(SerialNumber) ? "nosn" : SerialNumber)}";

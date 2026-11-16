@@ -8,6 +8,7 @@ public static class ProtocolCatalog
     public static IReadOnlyList<IBatteryProtocol> All { get; } = new IBatteryProtocol[]
     {
         new VgnV98ProProtocol(),
+        new DualSenseProtocol(),
         new FlydigiProtocol(),
         new RazerProtocol(),
     };

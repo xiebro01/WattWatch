@@ -154,6 +154,8 @@ public static class BluetoothBatteryReader
                 $"DEVPKEY_Device_BatteryLevel={carrier.Battery} node={carrier.Transport}/{carrier.Service ?? "-"}"));
         }
 
+        result = result.Select(d => d with { Name = ShortenName(d.Name) }).ToList();
+
         // Two identical models (e.g. two Xbox pads) must not look like duplicates.
         var duplicatedNames = result
             .GroupBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
@@ -172,6 +174,13 @@ public static class BluetoothBatteryReader
 
         return result;
     }
+
+    private static string ShortenName(string name) => name switch
+    {
+        "Xbox Wireless Controller" => "Xbox 手柄",
+        "DualSense Wireless Controller" => "DualSense 手柄",
+        _ => name,
+    };
 
     private static string CleanName(string name)
     {

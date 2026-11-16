@@ -25,7 +25,7 @@ public sealed class HidBatterySource : IBatterySource
 
     public DeviceKind Kind => Protocol.Kind(Info);
 
-    public string Transport => "2.4G 接收器";
+    public string Transport => Info.TransportLabel;
 
     public string ProtocolLabel => Protocol.DisplayName;
 

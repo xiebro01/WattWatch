@@ -51,6 +51,9 @@ public sealed class BatteryMonitor : IDisposable
 
     public string Status { get; private set; } = "正在初始化…";
 
+    /// <summary>Vendor devices that are present but have no battery reader yet.</summary>
+    public IReadOnlyList<OtherDevice> OtherDevices { get; private set; } = Array.Empty<OtherDevice>();
+
     public event Action? DevicesChanged;
 
     public event Action<BatteryDevice>? DeviceUpdated;
@@ -158,15 +161,22 @@ public sealed class BatteryMonitor : IDisposable
     private void Scan()
     {
         var sources = new List<IBatterySource>();
+        var claimed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (HidInterfaceInfo info in HidEnumerator.Enumerate())
+        IReadOnlyList<HidInterfaceInfo> interfaces = HidEnumerator.Enumerate();
+        foreach (HidInterfaceInfo info in interfaces)
         {
             IBatteryProtocol? protocol = ProtocolCatalog.Match(info);
-            if (protocol != null) sources.Add(new HidBatterySource(info, protocol));
+            if (protocol == null) continue;
+
+            sources.Add(new HidBatterySource(info, protocol));
+            claimed.Add(info.VidPid);
         }
 
         foreach (BluetoothBatteryDevice device in BluetoothBatteryReader.Scan())
             sources.Add(new BluetoothBatterySource(device));
+
+        OtherDevices = CollectOthers(interfaces, claimed);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         bool changed = false;
@@ -240,6 +250,34 @@ public sealed class BatteryMonitor : IDisposable
             if (wait > ScanInterval) wait = ScanInterval;
             return wait;
         }
+    }
+
+    /// <summary>
+    /// Devices that expose a vendor collection but no battery protocol we know.
+    /// Grouped per model so one receiver's ten interfaces stay one row.
+    /// </summary>
+    private static IReadOnlyList<OtherDevice> CollectOthers(IReadOnlyList<HidInterfaceInfo> interfaces,
+        HashSet<string> claimedVidPid)
+    {
+        var others = new List<OtherDevice>();
+
+        foreach (IGrouping<string, HidInterfaceInfo> group in interfaces
+                     .Where(i => i.UsagePage >= 0xFF00 && !string.IsNullOrWhiteSpace(i.Product))
+                     .GroupBy(i => i.VidPid + "|" + i.Product, StringComparer.OrdinalIgnoreCase))
+        {
+            HidInterfaceInfo first = group.First();
+            if (claimedVidPid.Contains(first.VidPid)) continue;
+
+            others.Add(new OtherDevice(
+                first.Product.Trim(),
+                first.VidPid,
+                first.TransportLabel,
+                "未适配电量协议"));
+        }
+
+        return others
+            .OrderBy(o => o.Name, StringComparer.CurrentCulture)
+            .ToList();
     }
 
     private void ReadOne(BatteryDevice device)

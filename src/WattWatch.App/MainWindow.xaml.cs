@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
@@ -58,11 +59,15 @@ public partial class MainWindow : Window
     private void PlaceWindow()
     {
         IntPtr handle = new WindowInteropHelper(this).Handle;
-        IntPtr monitor = MonitorFromWindow(handle, MonitorDefaultToNearest);
+        // Always centre on the primary monitor: the window may be created on a
+        // secondary screen (mixed DPI), and a tray app belongs where the taskbar is.
+        IntPtr monitor = MonitorFromPoint(new Point32 { X = 0, Y = 0 }, MonitorDefaultToPrimary);
         var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
         if (!GetMonitorInfo(monitor, ref info)) return;
 
-        uint dpi = GetDpiForWindow(handle);
+        uint dpi = 96;
+        if (GetDpiForMonitor(monitor, 0, out uint dpiX, out _) != 0 || dpiX == 0)
+            dpi = GetDpiForWindow(handle);
         double scale = dpi > 0 ? dpi / 96.0 : 1.0;
 
         int workWidth = info.Work.Right - info.Work.Left;
@@ -86,7 +91,20 @@ public partial class MainWindow : Window
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.U1)]
     private static extern bool SetWindowPos(IntPtr handle, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
-    private const uint MonitorDefaultToNearest = 2;
+    private const uint MonitorDefaultToPrimary = 1;
+
+    [DllImport("shcore.dll")]
+    private static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Point32
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromPoint(Point32 point, uint flags);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect
@@ -157,7 +175,9 @@ public partial class MainWindow : Window
 
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Escape && _viewModel.IsSettingsOpen) _viewModel.IsSettingsOpen = false;
+        if (e.Key != Key.Escape) return;
+        if (_viewModel.IsSettingsOpen) _viewModel.IsSettingsOpen = false;
+        else if (_viewModel.IsOtherOpen) _viewModel.IsOtherOpen = false;
     }
 
     protected override void OnClosing(CancelEventArgs e)
