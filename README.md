@@ -6,6 +6,11 @@ Windows 托盘小工具：把 2.4G 接收器和蓝牙外设的电量集中显示
 > 它没认出 1532:00C1 的毒蝰 V3 Pro，也不支持八爪鱼 5；而且主动查询频率偏高。
 > 这里换了一套"被动优先 + 低频主动"的调度，并把已验证的协议整理成独立探针。
 
+## 界面
+
+![设备列表](assets/screenshot-devices.png)
+
+![其他设备](assets/screenshot-other.png)
 ## 已支持设备
 
 | 设备 | 识别方式 | 状态 |
@@ -45,7 +50,7 @@ Windows 托盘小工具：把 2.4G 接收器和蓝牙外设的电量集中显示
 
 ## 构建
 
-需要 .NET 8 SDK（本机放在 `D:\tools\dotnet`，脚本会自动找）。
+需要 .NET 8 SDK（脚本会依次找仓库下的 `.dotnet\`、`D:\tools\dotnet`，最后才是 PATH 里的 `dotnet`）。
 
 ```powershell
 # 调试构建
@@ -86,3 +91,7 @@ WattWatch.Probe.exe dump 37D7:2501 5   # 被动抓 5 秒输入报文，用于适
 协议细节参考了 [OpenRazer](https://github.com/openrazer/openrazer)（雷蛇 90 字节帧）、
 [SDL](https://github.com/libsdl-org/SDL)（飞智 V2 帧）、VigilWatt 的硬件文档（VGN / 雷蛇 / 蓝牙节点思路）。
 代码为独立实现。
+
+## 许可
+
+MIT License，见 [LICENSE](LICENSE)。
