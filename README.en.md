@@ -42,7 +42,7 @@ without draining the battery.
 - A 2.4 GHz receiver stays plugged in whether the peripheral is on or off, so the device
   tree cannot tell "switched off" from "still there". Two consecutive failed reads
   (about one interval, ~1 hour by default) are treated as disconnected: the card leaves
-  the main list and moves to **Other devices** with "已断开 · last reading x ago".
+  the main list and moves to **Other devices** with "disconnected · last reading x ago".
 - Hidden devices keep being polled at the normal cadence, so they come back to the list
   by themselves as soon as they answer again — no restart needed.
 - Bluetooth devices are removed immediately: Windows drops their nodes on disconnect.
