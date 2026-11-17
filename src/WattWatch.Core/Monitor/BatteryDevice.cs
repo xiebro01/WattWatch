@@ -32,5 +32,13 @@ public sealed class BatteryDevice
 
     public int Failures { get; set; }
 
+    /// <summary>No failed reads since the last good one.</summary>
+    public bool IsOnline => Failures == 0;
+
+    /// <summary>Two missed polls in a row (about one interval) and the device is
+    /// treated as gone: hidden from the list but still polled, so it comes back
+    /// by itself when it answers again.</summary>
+    public bool IsVisible => Failures < 2;
+
     public DateTimeOffset NextDueAt { get; set; }
 }

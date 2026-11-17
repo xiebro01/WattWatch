@@ -220,7 +220,7 @@
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="其他设备" FontSize="16" FontWeight="SemiBold"
                                        Foreground="{StaticResource TextBrush}" />
-                            <TextBlock Text="系统里能看到，但还没有可用的电量读取方式" FontSize="11" Margin="0,3,0,0"
+                            <TextBlock Text="能检测到、但读不到电量的设备（未适配或已断开）" FontSize="11" Margin="0,3,0,0"
                                        Foreground="{StaticResource MutedBrush}" />
                         </StackPanel>
                         <Button Style="{StaticResource IconButton}" Content="&#xE72B;" HorizontalAlignment="Right"

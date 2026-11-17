@@ -51,8 +51,34 @@ public sealed class BatteryMonitor : IDisposable
 
     public string Status { get; private set; } = "正在初始化…";
 
-    /// <summary>Vendor devices that are present but have no battery reader yet.</summary>
-    public IReadOnlyList<OtherDevice> OtherDevices { get; private set; } = Array.Empty<OtherDevice>();
+    private IReadOnlyList<OtherDevice> _otherHid = Array.Empty<OtherDevice>();
+
+    /// <summary>Devices with no reader, plus tracked devices that stopped answering.</summary>
+    public IReadOnlyList<OtherDevice> OtherDevices
+    {
+        get
+        {
+            lock (_gate)
+            {
+                var offline = _devices.Values
+                    .Where(d => !d.IsVisible)
+                    .OrderBy(d => d.Name, StringComparer.CurrentCulture)
+                    .Select(d => new OtherDevice(d.Name, "离线", d.Transport, "已断开 · 上次读数 " + DescribeAge(d.LastReadAt)));
+
+                return _otherHid.Concat(offline).ToList();
+            }
+        }
+    }
+
+    private static string DescribeAge(DateTimeOffset? when)
+    {
+        if (when == null) return "从未读取";
+        TimeSpan delta = DateTimeOffset.Now - when.Value;
+        if (delta < TimeSpan.FromMinutes(1)) return "刚刚";
+        if (delta < TimeSpan.FromHours(1)) return $"{(int)delta.TotalMinutes} 分钟前";
+        if (delta < TimeSpan.FromDays(1)) return $"{(int)delta.TotalHours} 小时前";
+        return $"{(int)delta.TotalDays} 天前";
+    }
 
     public event Action? DevicesChanged;
 
@@ -69,6 +95,7 @@ public sealed class BatteryMonitor : IDisposable
             lock (_gate)
             {
                 return _devices.Values
+                    .Where(d => d.IsVisible)
                     .OrderBy(d => d.Kind)
                     .ThenBy(d => d.Name, StringComparer.CurrentCulture)
                     .ToList();
@@ -188,7 +215,7 @@ public sealed class BatteryMonitor : IDisposable
                 bluetoothOthers.Add(new OtherDevice(device.Name, device.Mac, device.Transport, "系统没有缓存电量"));
         }
 
-        OtherDevices = CollectOthers(interfaces, claimed)
+        _otherHid = CollectOthers(interfaces, claimed)
             .Concat(bluetoothOthers)
             .OrderBy(o => o.Name, StringComparer.CurrentCulture)
             .ToList();
@@ -318,6 +345,7 @@ public sealed class BatteryMonitor : IDisposable
         {
             int? previous = device.Percent;
             bool changed = previous != result.Clamped || device.Charging != result.Charging;
+            bool wasHidden = !device.IsVisible;
 
             device.Percent = result.Clamped;
             device.Charging = result.Charging;
@@ -328,7 +356,8 @@ public sealed class BatteryMonitor : IDisposable
 
             _history.Append(device.Key, result.Clamped, result.Charging, now);
 
-            if (changed || previous == null) DeviceUpdated?.Invoke(device);
+            if (wasHidden) DevicesChanged?.Invoke();
+            if (changed || previous == null || wasHidden) DeviceUpdated?.Invoke(device);
             if (previous is { } before && before > Settings.LowBatteryThreshold
                 && result.Clamped <= Settings.LowBatteryThreshold
                 && result.Charging is ChargingState.Discharging or ChargingState.Unknown)
@@ -342,12 +371,18 @@ public sealed class BatteryMonitor : IDisposable
             device.LastError = error;
             // Never retry a silent peripheral sooner than a full interval: retrying
             // is exactly what wakes a sleeping 2.4G mouse.
-            double multiplier = Math.Pow(2, Math.Min(device.Failures, 4));
+            double multiplier = Math.Pow(2, Math.Min(device.Failures - 1, 3));
             TimeSpan delay = TimeSpan.FromTicks(Math.Min((long)(interval.Ticks * multiplier), TimeSpan.FromHours(4).Ticks));
+            // Hidden devices keep the base cadence: they are usually simply switched
+            // off, and we want them back on screen soon after they wake up.
+            if (!device.IsVisible) delay = interval;
             device.NextDueAt = now + delay;
 
             DeviceUpdated?.Invoke(device);
-            SetStatus($"{device.Name} 未应答（第 {device.Failures} 次），已退避");
+            if (!device.IsVisible) DevicesChanged?.Invoke();
+            SetStatus(device.IsVisible
+                ? $"{device.Name} 未应答（第 {device.Failures} 次），已退避"
+                : $"{device.Name} 已标记为断开，暂停显示");
         }
     }
 

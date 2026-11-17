@@ -63,13 +63,18 @@ public sealed class DeviceViewModel : INotifyPropertyChanged
 
     public double BarWidth => Math.Clamp(_device.Percent ?? 0, 0, 100) * 0.96;
 
-    public Brush Accent => _device.Percent switch
-    {
-        null => Muted,
-        >= 50 => Good,
-        >= 20 => Warn,
-        _ => Bad,
-    };
+    /// <summary>Dim the card while the device is not answering.</summary>
+    public double CardOpacity => _device.IsOnline ? 1.0 : 0.55;
+
+    public Brush Accent => !_device.IsOnline
+        ? Muted
+        : _device.Percent switch
+        {
+            null => Muted,
+            >= 50 => Good,
+            >= 20 => Warn,
+            _ => Bad,
+        };
 
     public string Subtitle => _device.Transport;
 
@@ -78,6 +83,8 @@ public sealed class DeviceViewModel : INotifyPropertyChanged
         get
         {
             string age = Age(_device.LastReadAt);
+            if (!_device.IsOnline)
+                return _device.LastReadAt == null ? "未连接" : $"未连接 · 上次 {age}";
             if (_device.LastError != null && _device.Percent == null)
                 return $"无应答 · {age}";
             string charging = _device.Charging switch

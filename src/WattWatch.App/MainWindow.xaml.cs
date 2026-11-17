@@ -35,6 +35,8 @@ public partial class MainWindow : Window
         {
             PlaceWindow();
             _viewModel.SyncDevices(_monitor.Devices);
+            // Second pass after the DPI switch lands, so centring uses the final size.
+            Dispatcher.BeginInvoke(new Action(PlaceWindow), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         };
 
         try
@@ -109,6 +111,15 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr handle);
 
+    private const uint SwpNoSize = 0x0001;
+    private const uint SwpNoZOrder = 0x0004;
+    private const uint SwpNoActivate = 0x0010;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    private static extern bool SetWindowPos(IntPtr handle, IntPtr insertAfter, int x, int y,
+        int width, int height, uint flags);
+
     public void PrepareForExit() => _exiting = true;
 
     private void OnDevicesChanged() =>
@@ -122,6 +133,29 @@ public partial class MainWindow : Window
         base.OnSourceInitialized(e);
         _source = PresentationSource.FromVisual(this) as HwndSource;
         _source?.AddHook(WndProc);
+        MoveToPrimaryMonitor();
+    }
+
+    /// <summary>
+    /// WPF sets a new window wherever the system likes (often the secondary
+    /// monitor, with a different DPI). Park it on the primary monitor first, in
+    /// physical pixels and without touching the size, so the DPI switch happens
+    /// before Loaded centres it with WPF units.
+    /// </summary>
+    private void MoveToPrimaryMonitor()
+    {
+        IntPtr handle = new WindowInteropHelper(this).Handle;
+        IntPtr primary = MonitorFromPoint(new Point32 { X = 0, Y = 0 }, MonitorDefaultToPrimary);
+        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (!GetMonitorInfo(primary, ref info)) return;
+
+        int width = info.Work.Right - info.Work.Left;
+        int height = info.Work.Bottom - info.Work.Top;
+
+        SetWindowPos(handle, IntPtr.Zero,
+            info.Work.Left + width / 2 - 200,
+            info.Work.Top + height / 2 - 300,
+            0, 0, SwpNoSize | SwpNoZOrder | SwpNoActivate);
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
